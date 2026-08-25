@@ -11,8 +11,6 @@ export default async function SignalsPage() {
   
   const analyzedMarkets = await Promise.all(rawMarkets.map(async (m: Record<string, unknown>) => {
     const question = String(m.question || "");
-    const news = await fetchNewsForMarket(question);
-    
     const weatherTarget = parseWeatherTarget(question);
 
     // Fetch data concurrently for speed
