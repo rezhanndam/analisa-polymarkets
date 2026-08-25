@@ -15,12 +15,10 @@ export default function SettingsPage() {
 
   const fetchConfig = async () => {
     try {
-      const { data, error } = await supabase.from('bot_config').select('*').eq('id', 1).single();
-      if (error) {
-        console.error("Supabase read error:", error);
-        throw error;
-      }
-      if (data) setConfig(data);
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setConfig(data);
     } catch (err) {
       console.warn("Fallback to default config due to fetch error.");
       setConfig({
@@ -36,7 +34,6 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const payload = {
-        id: 1,
         status: config.status,
         mode: config.mode,
         trade_size_pct: config.trade_size_pct,
@@ -46,14 +43,19 @@ export default function SettingsPage() {
         sl_pct: config.sl_pct
       };
 
-      const { error } = await supabase.from('bot_config').upsert(payload);
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       
-      if (error) {
-        throw new Error(error.message || JSON.stringify(error));
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Unknown server error');
       }
       alert('Settings saved successfully!');
     } catch (err: any) {
-      alert('Failed to save directly to Supabase. Error: ' + err.message);
+      alert('Failed to save. Error: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -65,8 +67,25 @@ export default function SettingsPage() {
     setConfig(temp);
     
     try {
-       const { error } = await supabase.from('bot_config').update({ status: newStatus }).eq('id', 1);
-       if (error) throw new Error(error.message || JSON.stringify(error));
+      const payload = {
+        status: temp.status,
+        mode: temp.mode,
+        trade_size_pct: temp.trade_size_pct,
+        max_positions: temp.max_positions,
+        min_confidence: temp.min_confidence,
+        tp_pct: temp.tp_pct,
+        sl_pct: temp.sl_pct
+      };
+      
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error);
+      }
     } catch (err: any) {
       alert('Failed to change status. Error: ' + err.message);
     }
