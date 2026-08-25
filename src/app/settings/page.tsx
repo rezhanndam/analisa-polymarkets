@@ -14,24 +14,38 @@ export default function SettingsPage() {
   }, []);
 
   const fetchConfig = async () => {
-    const { data } = await supabase.from('bot_config').select('*').eq('id', 1).single();
-    if (data) {
-      setConfig(data);
+    try {
+      const { data, error } = await supabase.from('bot_config').select('*').eq('id', 1).single();
+      if (error) throw error;
+      if (data) {
+        setConfig(data);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+      // Fallback if RLS blocks or empty
+      setConfig({
+        status: 'STOPPED', mode: 'paper', trade_size_pct: 10,
+        max_positions: 5, min_confidence: 80, tp_pct: 75, sl_pct: -40
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    await supabase.from('bot_config').upsert({ id: 1, ...config });
+    const { error } = await supabase.from('bot_config').upsert({ id: 1, ...config });
     setSaving(false);
-    alert('Settings saved successfully!');
+    if (error) alert('Failed to save. Check Supabase RLS policies (allow update).');
+    else alert('Settings saved successfully!');
   };
 
   const toggleStatus = async () => {
     const newStatus = config.status === 'RUNNING' ? 'STOPPED' : 'RUNNING';
-    setConfig({ ...config, status: newStatus });
-    await supabase.from('bot_config').update({ status: newStatus }).eq('id', 1);
+    const temp = { ...config, status: newStatus };
+    setConfig(temp);
+    const { error } = await supabase.from('bot_config').upsert({ id: 1, ...temp });
+    if (error) alert('Failed to change status. Check Supabase RLS.');
   };
 
   if (loading || !config) return <div className="text-slate-500">Loading settings...</div>;
