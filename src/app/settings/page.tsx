@@ -2,6 +2,7 @@
 
 import { Save, ShieldAlert, Bot, Play, Square } from "lucide-react";
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<any>(null);
@@ -14,11 +15,14 @@ export default function SettingsPage() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch('/api/config');
-      const data = await res.json();
-      setConfig(data);
+      const { data, error } = await supabase.from('bot_config').select('*').eq('id', 1).single();
+      if (error) {
+        console.error("Supabase read error:", error);
+        throw error;
+      }
+      if (data) setConfig(data);
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.warn("Fallback to default config due to fetch error.");
       setConfig({
         status: 'STOPPED', mode: 'paper', trade_size_pct: 10,
         max_positions: 5, min_confidence: 80, tp_pct: 75, sl_pct: -40
@@ -31,8 +35,8 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Extract only valid columns to prevent schema errors
       const payload = {
+        id: 1,
         status: config.status,
         mode: config.mode,
         trade_size_pct: config.trade_size_pct,
@@ -42,19 +46,14 @@ export default function SettingsPage() {
         sl_pct: config.sl_pct
       };
 
-      const res = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const { error } = await supabase.from('bot_config').upsert(payload);
       
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Unknown server error');
+      if (error) {
+        throw new Error(error.message || JSON.stringify(error));
       }
       alert('Settings saved successfully!');
     } catch (err: any) {
-      alert('Failed to save. Error: ' + err.message);
+      alert('Failed to save directly to Supabase. Error: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -64,26 +63,10 @@ export default function SettingsPage() {
     const newStatus = config.status === 'RUNNING' ? 'STOPPED' : 'RUNNING';
     const temp = { ...config, status: newStatus };
     setConfig(temp);
+    
     try {
-      const payload = {
-        status: temp.status,
-        mode: temp.mode,
-        trade_size_pct: temp.trade_size_pct,
-        max_positions: temp.max_positions,
-        min_confidence: temp.min_confidence,
-        tp_pct: temp.tp_pct,
-        sl_pct: temp.sl_pct
-      };
-      
-      const res = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error);
-      }
+       const { error } = await supabase.from('bot_config').update({ status: newStatus }).eq('id', 1);
+       if (error) throw new Error(error.message || JSON.stringify(error));
     } catch (err: any) {
       alert('Failed to change status. Error: ' + err.message);
     }
