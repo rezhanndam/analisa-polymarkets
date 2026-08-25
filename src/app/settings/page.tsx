@@ -2,7 +2,7 @@
 
 import { Save, ShieldAlert, Bot, Play, Square } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { saveConfigAction, toggleStatusAction } from "@/app/actions";
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<any>(null);
@@ -34,7 +34,6 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const payload = {
-        status: config.status,
         mode: config.mode,
         trade_size_pct: config.trade_size_pct,
         max_positions: config.max_positions,
@@ -43,51 +42,28 @@ export default function SettingsPage() {
         sl_pct: config.sl_pct
       };
 
-      const res = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const res = await saveConfigAction(payload);
+      if (!res.success) throw new Error(res.error);
       
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Unknown server error');
-      }
       alert('Settings saved successfully!');
     } catch (err: any) {
-      alert('Failed to save. Error: ' + err.message);
+      alert(`Failed to save settings. Error: ${err.message}`);
     } finally {
       setSaving(false);
     }
   };
 
   const toggleStatus = async () => {
-    const newStatus = config.status === 'RUNNING' ? 'STOPPED' : 'RUNNING';
-    const temp = { ...config, status: newStatus };
-    setConfig(temp);
+    const originalStatus = config.status;
+    const newStatus = originalStatus === 'RUNNING' ? 'STOPPED' : 'RUNNING';
+    setConfig({ ...config, status: newStatus });
     
     try {
-      const payload = {
-        status: temp.status,
-        mode: temp.mode,
-        trade_size_pct: temp.trade_size_pct,
-        max_positions: temp.max_positions,
-        min_confidence: temp.min_confidence,
-        tp_pct: temp.tp_pct,
-        sl_pct: temp.sl_pct
-      };
-      
-      const res = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error);
-      }
+      const res = await toggleStatusAction(originalStatus);
+      if (!res.success) throw new Error(res.error);
     } catch (err: any) {
-      alert('Failed to change status. Error: ' + err.message);
+      alert(`Failed to change status. Error: ${err.message}`);
+      setConfig({ ...config, status: originalStatus }); 
     }
   };
 
