@@ -31,15 +31,30 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Extract only valid columns to prevent schema errors
+      const payload = {
+        status: config.status,
+        mode: config.mode,
+        trade_size_pct: config.trade_size_pct,
+        max_positions: config.max_positions,
+        min_confidence: config.min_confidence,
+        tp_pct: config.tp_pct,
+        sl_pct: config.sl_pct
+      };
+
       const res = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to save');
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Unknown server error');
+      }
       alert('Settings saved successfully!');
-    } catch (err) {
-      alert('Failed to save. Server error.');
+    } catch (err: any) {
+      alert('Failed to save. Error: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -50,13 +65,27 @@ export default function SettingsPage() {
     const temp = { ...config, status: newStatus };
     setConfig(temp);
     try {
-      await fetch('/api/config', {
+      const payload = {
+        status: temp.status,
+        mode: temp.mode,
+        trade_size_pct: temp.trade_size_pct,
+        max_positions: temp.max_positions,
+        min_confidence: temp.min_confidence,
+        tp_pct: temp.tp_pct,
+        sl_pct: temp.sl_pct
+      };
+      
+      const res = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(temp)
+        body: JSON.stringify(payload)
       });
-    } catch (err) {
-      alert('Failed to change status.');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error);
+      }
+    } catch (err: any) {
+      alert('Failed to change status. Error: ' + err.message);
     }
   };
 
