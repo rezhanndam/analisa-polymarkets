@@ -1,0 +1,17 @@
+name: Bot Trigger (5 Min)
+
+on:
+  schedule:
+    # Jalan setiap 5 menit
+    - cron: '*/5 * * * *'
+  # Memungkinkan untuk di-trigger manual lewat tombol di GitHub
+  workflow_dispatch:
+
+jobs:
+  hit_api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit Vercel Cron Endpoint
+        # Pastikan mengganti <URL-VERCEL-KAMU> dengan URL vercel aslimu jika sudah siap
+        run: |
+          curl -s -X GET "https://analisa-polymarkets-8bf2aqjit-rezha-s-projects.vercel.app/api/cron"
