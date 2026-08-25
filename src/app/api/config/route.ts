@@ -20,9 +20,13 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { error } = await supabaseAdmin.from('bot_config').upsert({ id: 1, ...body });
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase upsert error:", error);
+      return NextResponse.json({ error: error.message || JSON.stringify(error) }, { status: 500 });
+    }
     return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+  } catch (error: any) {
+    console.error("Config POST error:", error);
+    return NextResponse.json({ error: error.message || String(error) }, { status: 500 });
   }
 }
