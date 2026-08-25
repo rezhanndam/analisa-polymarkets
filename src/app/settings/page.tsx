@@ -2,7 +2,6 @@
 
 import { Save, ShieldAlert, Bot, Play, Square } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<any>(null);
@@ -15,14 +14,11 @@ export default function SettingsPage() {
 
   const fetchConfig = async () => {
     try {
-      const { data, error } = await supabase.from('bot_config').select('*').eq('id', 1).single();
-      if (error) throw error;
-      if (data) {
-        setConfig(data);
-      }
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      setConfig(data);
     } catch (err) {
       console.error("Fetch error:", err);
-      // Fallback if RLS blocks or empty
       setConfig({
         status: 'STOPPED', mode: 'paper', trade_size_pct: 10,
         max_positions: 5, min_confidence: 80, tp_pct: 75, sl_pct: -40
@@ -34,18 +30,34 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase.from('bot_config').upsert({ id: 1, ...config });
-    setSaving(false);
-    if (error) alert('Failed to save. Check Supabase RLS policies (allow update).');
-    else alert('Settings saved successfully!');
+    try {
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      alert('Settings saved successfully!');
+    } catch (err) {
+      alert('Failed to save. Server error.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleStatus = async () => {
     const newStatus = config.status === 'RUNNING' ? 'STOPPED' : 'RUNNING';
     const temp = { ...config, status: newStatus };
     setConfig(temp);
-    const { error } = await supabase.from('bot_config').upsert({ id: 1, ...temp });
-    if (error) alert('Failed to change status. Check Supabase RLS.');
+    try {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(temp)
+      });
+    } catch (err) {
+      alert('Failed to change status.');
+    }
   };
 
   if (loading || !config) return <div className="text-slate-500">Loading settings...</div>;
