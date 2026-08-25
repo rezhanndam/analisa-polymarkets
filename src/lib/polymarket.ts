@@ -48,21 +48,26 @@ export async function fetchGammaMarkets(limit = 150, timeWindow: TimeWindow = '2
 
     const order = orderMap[timeWindow] || 'volume24hr';
     
-    const queries = ['weather', 'temperature', 'climate', 'hurricane', 'snow', 'rain'];
-    const fetchPromises = queries.map(q => 
-      fetch(`${GAMMA_API}/markets?limit=40&active=true&closed=false&order=${order}&ascending=false&_q=${encodeURIComponent(q)}`, { cache: 'no-store' })
-        .then(r => r.ok ? r.json() : [])
-        .catch(() => [])
-    );
+    // Gunakan endpoint /events lalu extract .markets
+    const res = await fetch(`${GAMMA_API}/events?limit=${limit}&active=true&closed=false&order=${order}&ascending=false`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    
+    const events = await res.json();
+    if (!Array.isArray(events)) return [];
 
-    fetchPromises.push(
-      fetch(`${GAMMA_API}/markets?limit=${limit}&active=true&closed=false&order=${order}&ascending=false`, { cache: 'no-store' })
-        .then(r => r.ok ? r.json() : [])
-        .catch(() => [])
-    );
-
-    const allBatches = await Promise.all(fetchPromises);
-    const combined = allBatches.flat();
+    const combined: any[] = [];
+    for (const ev of events) {
+      if (Array.isArray(ev.markets)) {
+        // Flatten markets into main array, inherit some event properties
+        ev.markets.forEach((m: any) => {
+          combined.push({
+            ...m,
+            volume24hr: ev.volume24hr || m.volume24hr,
+            tags: ev.tags || m.tags
+          });
+        });
+      }
+    }
 
     const uniqueMap = new Map<string, Record<string, unknown>>();
     for (const m of combined) {
@@ -80,7 +85,14 @@ export async function fetchGammaMarkets(limit = 150, timeWindow: TimeWindow = '2
       }
     }
 
-    return Array.from(uniqueMap.values());
+    // Jika tidak ada cuaca, gunakan fallback ke market terpopuler untuk keperluan DEMO
+    const results = Array.from(uniqueMap.values());
+    if (results.length === 0 && forceWeatherOnly) {
+       console.log("No weather markets found, using general active markets as fallback for demo.");
+       return combined.slice(0, 10);
+    }
+
+    return results;
   } catch (e) {
     console.error("Gamma fetch error:", e);
     return [];
