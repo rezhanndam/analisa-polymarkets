@@ -15,7 +15,7 @@ export async function fetchNewsForMarket(question: string): Promise<NewsItem[]> 
   try {
     const encoded = encodeURIComponent(`${keywords} weather OR temperature OR NOAA OR "National Weather Service" OR storm OR hurricane OR climate`);
     const res = await fetch(`${RSS_TO_JSON}${encodeURIComponent(GOOGLE_NEWS_RSS + encoded)}&count=5`, {
-      cache: 'no-store'
+      next: { revalidate: 900 } // Cache 15 minutes
     });
     
     if (!res.ok) return [];

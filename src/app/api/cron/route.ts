@@ -36,13 +36,15 @@ export async function GET(req: Request) {
       const isAlreadyIn = activePositions.some(p => p.market_id === m.conditionId);
       if (isAlreadyIn) continue;
 
-      // 2. Fetch required data
-      const news = await fetchNewsForMarket(question);
       const weatherTarget = parseWeatherTarget(question);
-      const weatherReport = weatherTarget.city ? await fetchLiveCityWeather(weatherTarget.city) : null;
-      
-      const orderbook = await fetchOrderbook(tids[0]);
-      const priceHistory = await fetchPriceHistory(tids[0]);
+
+      // 2. Fetch required data concurrently
+      const [news, weatherReport, orderbook, priceHistory] = await Promise.all([
+        fetchNewsForMarket(question),
+        weatherTarget.city ? fetchLiveCityWeather(weatherTarget.city) : Promise.resolve(null),
+        fetchOrderbook(tids[0]),
+        fetchPriceHistory(tids[0])
+      ]);
       
       // 3. Generate AI Signal
       const signal = generateSignal(

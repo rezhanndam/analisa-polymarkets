@@ -14,16 +14,20 @@ export default async function SignalsPage() {
     const news = await fetchNewsForMarket(question);
     
     const weatherTarget = parseWeatherTarget(question);
-    const weatherReport = weatherTarget.city ? await fetchLiveCityWeather(weatherTarget.city) : null;
-    
-    // Mock price history and orderbook for MVP UI
-    const priceHistory = [0.45, 0.46, 0.47, 0.48, 0.50];
-    const mockOrderbook = { bids: [{ size: 5000 }], asks: [{ size: 2000 }] };
+
+    // Fetch data concurrently for speed
+    const [news, weatherReport, orderbook, priceHistoryRaw] = await Promise.all([
+      fetchNewsForMarket(question),
+      weatherTarget.city ? fetchLiveCityWeather(weatherTarget.city) : Promise.resolve(null),
+      // Mock for UI since we don't always have valid token IDs at this level
+      Promise.resolve({ bids: [{ size: 5000 }], asks: [{ size: 2000 }] }),
+      Promise.resolve([0.45, 0.46, 0.47, 0.48, 0.50])
+    ]);
     
     const signal = generateSignal(
       question,
-      priceHistory,
-      mockOrderbook,
+      priceHistoryRaw,
+      orderbook,
       Number(m.volume24hr || 0),
       news,
       weatherReport
@@ -33,7 +37,7 @@ export default async function SignalsPage() {
       id: m.conditionId || m.id,
       question,
       volume: m.volume24hr,
-      curPrice: priceHistory[priceHistory.length - 1],
+      curPrice: priceHistoryRaw[priceHistoryRaw.length - 1],
       weatherReport,
       signal
     };

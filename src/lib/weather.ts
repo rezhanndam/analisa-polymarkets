@@ -112,7 +112,7 @@ export async function fetchLiveCityWeather(city: CityCoordinate): Promise<LiveWe
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code&hourly=temperature_2m,precipitation_probability,weather_code&temperature_unit=fahrenheit&forecast_days=3&timezone=${encodeURIComponent(city.timezone)}`;
     
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, { next: { revalidate: 600 } });
     if (!res.ok) return null;
     const data = await res.json();
 
